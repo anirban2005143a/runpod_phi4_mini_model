@@ -19,35 +19,48 @@ os.environ["HF_HOME"] = CACHE_DIR
 def load_model_with_cache():
     try:
         print("🔍 Checking Hugging Face cache...")
+
         try:
-            snapshot_path = snapshot_download(
+            snapshot_download(
                 repo_id=MODEL_ID,
                 cache_dir=CACHE_DIR,
                 local_files_only=True
             )
-            print(f"✅ Using cached model at: {snapshot_path}")
-        except (FileNotFoundError, HFValidationError):
-            print("⬇️ Model not found in cache. Downloading now...")
-            snapshot_path = snapshot_download(
+            print("✅ Model found in cache")
+        except Exception:
+            print("⬇️ Model not found in cache. Downloading...")
+            snapshot_download(
                 repo_id=MODEL_ID,
                 cache_dir=CACHE_DIR,
                 local_files_only=False
             )
-            print(f"✅ Model downloaded and cached at: {snapshot_path}")
+            print("✅ Model downloaded")
 
         print("🚀 Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(snapshot_path, trust_remote_code=True, cache_dir=CACHE_DIR)
+        tokenizer = AutoTokenizer.from_pretrained(
+            MODEL_ID,
+            trust_remote_code=True,
+            cache_dir=CACHE_DIR
+        )
 
         print("🚀 Loading model...")
-        model = AutoModelForCausalLM.from_pretrained(snapshot_path, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_ID,
+            trust_remote_code=True,
+            cache_dir=CACHE_DIR,
+            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+        )
+
         model.to(DEVICE)
         model.eval()
 
         print(f"🎯 Model ready on {DEVICE}")
         return model, tokenizer
+
     except Exception as e:
         print(f"❌ Model load failed: {e}")
         raise
+
 
 # -------------------------------------------------
 # GLOBAL LOAD
