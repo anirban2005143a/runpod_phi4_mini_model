@@ -7,3 +7,4 @@ uvicorn
 sentencepiece
 pydantic
 huggingface-hub>=0.18.1
+runpod
