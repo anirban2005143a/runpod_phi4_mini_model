@@ -36,10 +36,11 @@ def load_model_with_cache():
             )
             print("✅ Model downloaded")
 
-        print("🚀 Loading tokenizer...")
+        print("🚀 Loading tokenizer (slow)...")
         tokenizer = AutoTokenizer.from_pretrained(
             MODEL_ID,
             trust_remote_code=True,
+            use_fast=False,   # 🔥 CRITICAL
             cache_dir=CACHE_DIR
         )
 
@@ -60,6 +61,7 @@ def load_model_with_cache():
     except Exception as e:
         print(f"❌ Model load failed: {e}")
         raise
+
 
 
 # -------------------------------------------------
