@@ -2,15 +2,14 @@ import os
 import torch
 import runpod
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from huggingface_hub import snapshot_download
 from huggingface_hub.utils import HFValidationError
 
 # -------------------------------------------------
 # CONFIG
 # -------------------------------------------------
-MODEL_ID = "priyankrathore/phi4Mini_PEFT_layman"
-CACHE_DIR = "/runpod-volume/hf-cache"
+MODEL_ID = "AnirbanDas2005/phi4Mini_PEFT_layman"
+CACHE_DIR = "/runpod-volume/huggingface-cache"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 os.environ["HF_HOME"] = CACHE_DIR
 
@@ -56,20 +55,37 @@ def load_model_with_cache():
 MODEL, TOKENIZER = load_model_with_cache()
 
 # -------------------------------------------------
-# CHUNKING FUNCTION
+# PARAGRAPH-WISE CHUNKING FUNCTION
 # -------------------------------------------------
-def chunk_text(text, tokenizer, max_tokens=4000, overlap_tokens=50):
-    separators = ["\n\n", "\n", ". "]
-    def token_length_function(chunk):
-        return len(tokenizer(chunk)["input_ids"])
-    splitter = RecursiveCharacterTextSplitter(
-        separators=separators,
-        chunk_size=max_tokens,
-        chunk_overlap=overlap_tokens,
-        length_function=token_length_function,
-        is_separator_regex=False
-    )
-    return splitter.split_text(text)
+def chunk_text_paragraphwise(text, max_tokens=4000):
+    """Split text into chunks of max_tokens, paragraph-wise."""
+    paragraphs = text.split("\n\n")
+    chunks, current_chunk = [], ""
+    current_tokens = 0
+
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+
+        tokens = TOKENIZER(para, return_tensors="pt")["input_ids"].shape[1]
+
+        # If adding this paragraph exceeds limit, save current chunk
+        if current_tokens + tokens > max_tokens:
+            chunks.append(current_chunk.strip())
+            current_chunk = para
+            current_tokens = tokens
+        else:
+            if current_chunk:
+                current_chunk += "\n\n" + para
+            else:
+                current_chunk = para
+            current_tokens += tokens
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
 
 # -------------------------------------------------
 # TRIM FUNCTION
@@ -84,10 +100,10 @@ def trim_to_last_fullstop(text: str) -> str:
 # SUMMARY GENERATION
 # -------------------------------------------------
 def generate_summary(model, tokenizer, text, device, params):
-    chunks = chunk_text(text, tokenizer, max_tokens=params["chunk_tokens"], overlap_tokens=params.get("chunk_overlap",50))
+    chunks = chunk_text_paragraphwise(text, max_tokens=params["chunk_tokens"])
     summaries = []
 
-    for i, chunk in enumerate(chunks,1):
+    for i, chunk in enumerate(chunks, 1):
         print(f"   🔸 Summarizing chunk {i}/{len(chunks)} ...")
         prompt = (
             "Summarize the following legal text in simple layman terms. "
@@ -101,9 +117,9 @@ def generate_summary(model, tokenizer, text, device, params):
         with torch.no_grad():
             output_ids = model.generate(
                 **inputs,
-                max_new_tokens=params["max_new_tokens"],
-                do_sample=params.get("do_sample", False),
-                temperature=params.get("temperature",0.0),
+                max_new_tokens=params.get("max_new_tokens", 2048),
+                do_sample=params.get("do_sample", True),
+                temperature=params.get("temperature", 0.7),
                 pad_token_id=tokenizer.eos_token_id
             )
 
@@ -134,7 +150,6 @@ def handler(job):
     generation_params = {
         "max_new_tokens": job_input.get("max_new_tokens", 1024),
         "chunk_tokens": job_input.get("chunk_tokens", 2000),
-        "chunk_overlap": job_input.get("chunk_overlap", 100),
         "do_sample": job_input.get("do_sample", False),
         "temperature": job_input.get("temperature", 0.0)
     }
