@@ -1,4 +1,4 @@
-transformers>=4.44.0
+transformers==4.41.2
 torch>=2.1.0
 accelerate>=0.26.0
 safetensors
@@ -7,4 +7,4 @@ uvicorn
 sentencepiece
 pydantic
 huggingface-hub>=0.18.1
-runpod
+runpod>=0.5.7
