@@ -4,6 +4,7 @@ import runpod
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from huggingface_hub.utils import HFValidationError
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # -------------------------------------------------
 # CONFIG
@@ -72,33 +73,19 @@ MODEL, TOKENIZER = load_model_with_cache()
 # PARAGRAPH-WISE CHUNKING FUNCTION
 # -------------------------------------------------
 def chunk_text_paragraphwise(text, max_tokens=4000):
-    """Split text into chunks of max_tokens, paragraph-wise."""
-    paragraphs = text.split("\n\n")
-    chunks, current_chunk = [], ""
-    current_tokens = 0
+    """
+    Split text into chunks of max_tokens using a recursive text splitter.
+    First tries paragraphs (\n\n), then single lines (\n), then sentences (.).
+    """
+    # Initialize LangChain splitter
+    splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", ".", " "],  # hierarchical splitting
+        chunk_size=max_tokens,
+        chunk_overlap=0,  # no overlap
+        length_function=lambda txt: len(TOKENIZER(txt, return_tensors="pt")["input_ids"][0])
+    )
 
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-
-        tokens = TOKENIZER(para, return_tensors="pt")["input_ids"].shape[1]
-
-        # If adding this paragraph exceeds limit, save current chunk
-        if current_tokens + tokens > max_tokens:
-            chunks.append(current_chunk.strip())
-            current_chunk = para
-            current_tokens = tokens
-        else:
-            if current_chunk:
-                current_chunk += "\n\n" + para
-            else:
-                current_chunk = para
-            current_tokens += tokens
-
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-
+    chunks = splitter.split_text(text)
     return chunks
 
 # -------------------------------------------------
