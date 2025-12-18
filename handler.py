@@ -4,7 +4,7 @@ import runpod
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
 from huggingface_hub.utils import HFValidationError
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # -------------------------------------------------
 # CONFIG
