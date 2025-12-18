@@ -40,7 +40,6 @@ def load_model_with_cache():
         tokenizer = AutoTokenizer.from_pretrained(
             MODEL_ID,
             trust_remote_code=True,
-            use_fast=False,   # 🔥 CRITICAL
             cache_dir=CACHE_DIR
         )
 
