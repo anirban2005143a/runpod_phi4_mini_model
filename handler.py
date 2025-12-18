@@ -118,7 +118,7 @@ def generate_summary(model, tokenizer, text, device, params):
     summaries = []
 
     for i, chunk in enumerate(chunks, 1):
-        print(f"   🔸 Summarizing chunk {i}/{len(chunks)} ...")
+        print(f"   🔸 Summarizing chunk {i}/{len(chunks)} ... {chunk}")
         prompt = (
             "Summarize the following legal text in simple layman terms. "
             "Focus only on the main issue, what the petitioner claimed, "
@@ -136,8 +136,9 @@ def generate_summary(model, tokenizer, text, device, params):
                 temperature=params.get("temperature", 0.7),
                 pad_token_id=tokenizer.eos_token_id
             )
-
+    
         summary = tokenizer.decode(output_ids[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True).strip()
+        print(f"\nSummary of chunk {i} - {summary}")
         summary = trim_to_last_fullstop(summary)
         summaries.append(summary)
 
