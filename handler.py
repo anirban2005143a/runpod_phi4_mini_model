@@ -148,7 +148,7 @@ def generate_summary(model, tokenizer, text, device, params):
         summaries.append(response)
 
     return {
-        "generated_text": "\n\n".join(summaries)
+        "generated_text": " \n\n ".join(summaries)
     }
 
 
